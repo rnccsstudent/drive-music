@@ -2,37 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dynamic Google Drive Music</title>
+  <title>🎶 Drive Music Player</title>
   <style>
-    body { font-family: Arial; padding: 20px; background: #f0f0f0; }
-    .track { background: #fff; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
-    audio { display: block; margin-top: 8px; }
-    .controls { margin-top: 20px; }
-    button { padding: 10px 15px; margin-right: 10px; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #fff;
+      padding: 30px;
+    }
+
+    h1 {
+      color: #1DB954;
+    }
+
+    .controls {
+      margin-top: 20px;
+    }
+
+    input[type="text"] {
+      padding: 10px;
+      width: 300px;
+      border-radius: 20px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+    }
+
+    .button {
+      padding: 10px 16px;
+      background: #1DB954;
+      border: none;
+      border-radius: 20px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      margin-left: 8px;
+    }
+
+    .button:hover {
+      background: #17a34a;
+    }
+
+    .track {
+      background: #1e1e1e;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-radius: 8px;
+    }
+
+    audio {
+      display: block;
+      margin-top: 8px;
+      width: 100%;
+    }
+
+    #music-list {
+      margin-top: 30px;
+    }
+
+    .checkbox {
+      margin-right: 10px;
+    }
+
+    label {
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
 
-  <h1>🎶 Music from Google Drive</h1>
+  <h1>🎵 Drive Music Player</h1>
 
   <div class="controls">
-    <input type="text" id="folderIdInput" placeholder="Paste Folder ID here" style="width: 300px;" />
-    <button onclick="loadMusic()">Load Music</button>
+    <input type="text" id="folderIdInput" placeholder="Paste Google Drive Folder ID" />
+    <button class="button" onclick="loadMusic()">Load Music</button>
+    <input type="text" id="searchInput" placeholder="Search music..." oninput="filterTracks()" style="margin-top: 10px; margin-left: 10px; width: 200px;" />
   </div>
 
-  <div id="music-list" style="margin-top: 30px;"></div>
+  <div id="music-list"></div>
 
   <div class="controls">
-    <button onclick="downloadSelected()">Download Selected</button>
-    <button onclick="downloadAll()">Download All</button>
+    <button class="button" onclick="downloadSelected()">⬇️ Download Selected</button>
+    <button class="button" onclick="downloadAll()">⬇️ Download All</button>
+    <button class="button" onclick="shufflePlay()">🔀 Shuffle Play</button>
   </div>
 
   <script>
-    const apiKey = "AIzaSyCAqsBjTn5_Qbg21s8UMuJvHmt-b2hKpGA";
+    const apiKey = "AIzaSyCAqsBjTn5_Qbg21s8UMuJvHmt-b2hKpGA"; // Replace with your real API key
+    let currentAudio = null;
 
-    async function loadMusic() {
-      const folderId = document.getElementById('folderIdInput').value.trim();
+    window.onload = () => {
+      const savedFolderId = localStorage.getItem('lastFolderId');
+      if (savedFolderId) {
+        document.getElementById('folderIdInput').value = savedFolderId;
+        loadMusic(savedFolderId);
+      }
+    };
+
+    async function loadMusic(presetFolderId = null) {
+      const folderId = presetFolderId || document.getElementById('folderIdInput').value.trim();
       if (!folderId) return alert("Please enter a folder ID");
+
+      localStorage.setItem('lastFolderId', folderId); // 💾 Save to localStorage
 
       const url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${apiKey}&fields=files(id,name,mimeType)`;
 
@@ -41,7 +112,7 @@
         const data = await res.json();
 
         const musicList = document.getElementById('music-list');
-        musicList.innerHTML = ''; // Clear existing
+        musicList.innerHTML = '';
 
         const audioFiles = data.files.filter(file => file.mimeType.includes('audio'));
 
@@ -52,14 +123,14 @@
 
         audioFiles.forEach(file => {
           const downloadUrl = `https://drive.google.com/uc?export=download&id=${file.id}`;
-          const audioUrl = downloadUrl;
+          const audioUrl = `https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${apiKey}`;
 
           const trackDiv = document.createElement('div');
           trackDiv.className = 'track';
           trackDiv.innerHTML = `
-            <input type="checkbox" class="track-checkbox" data-link="${downloadUrl}">
+            <input type="checkbox" class="track-checkbox checkbox" data-link="${downloadUrl}">
             <label>${file.name}</label>
-            <audio controls src="${audioUrl}"></audio>
+            <audio controls src="${audioUrl}" preload="none"></audio>
           `;
           musicList.appendChild(trackDiv);
         });
@@ -67,6 +138,16 @@
         console.error(err);
         alert("Failed to load folder. Check folder ID and API key.");
       }
+    }
+
+    function filterTracks() {
+      const query = document.getElementById('searchInput').value.toLowerCase();
+      const tracks = document.querySelectorAll('.track');
+
+      tracks.forEach(track => {
+        const label = track.querySelector('label').innerText.toLowerCase();
+        track.style.display = label.includes(query) ? '' : 'none';
+      });
     }
 
     function downloadLink(url) {
@@ -86,6 +167,23 @@
     function downloadAll() {
       const all = document.querySelectorAll('.track-checkbox');
       all.forEach(cb => downloadLink(cb.dataset.link));
+    }
+
+    function shufflePlay() {
+      const tracks = Array.from(document.querySelectorAll('.track audio'));
+      if (tracks.length === 0) return;
+
+      const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+
+      // Stop any currently playing audio
+      if (currentAudio && !currentAudio.paused) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+      }
+
+      currentAudio = randomTrack;
+      currentAudio.play();
+      randomTrack.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   </script>
 
