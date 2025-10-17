@@ -86,9 +86,9 @@
     <button class="button" onclick="downloadAll()">⬇️ Download All</button>
     <button class="button" onclick="shufflePlay()">🔀 Shuffle Play</button>
   </div>
-
+  <script src="config.js"></script>
   <script>
-    const apiKey = "AIzaSyCAqsBjTn5_Qbg21s8UMuJvHmt-b2hKpGA"; // Replace with your real API key
+    const apiKey = config.apiKey; // Replace with your real API key
     let currentAudio = null;
 
     window.onload = () => {
