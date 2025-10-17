@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dynamic Google Drive Music</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f0f0f0; }
+    .track { background: #fff; padding: 15px; margin-bottom: 10px; border-radius: 8px; }
+    audio { display: block; margin-top: 8px; }
+    .controls { margin-top: 20px; }
+    button { padding: 10px 15px; margin-right: 10px; }
+  </style>
+</head>
+<body>
+
+  <h1>🎶 Music from Google Drive</h1>
+
+  <div class="controls">
+    <input type="text" id="folderIdInput" placeholder="Paste Folder ID here" style="width: 300px;" />
+    <button onclick="loadMusic()">Load Music</button>
+  </div>
+
+  <div id="music-list" style="margin-top: 30px;"></div>
+
+  <div class="controls">
+    <button onclick="downloadSelected()">Download Selected</button>
+    <button onclick="downloadAll()">Download All</button>
+  </div>
+
+  <script>
+    const apiKey = "YOUR_API_KEY_HERE";
+
+    async function loadMusic() {
+      const folderId = document.getElementById('folderIdInput').value.trim();
+      if (!folderId) return alert("Please enter a folder ID");
+
+      const url = `https://www.googleapis.com/drive/v3/files?q='${folderId}'+in+parents&key=${apiKey}&fields=files(id,name,mimeType)`;
+
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+
+        const musicList = document.getElementById('music-list');
+        musicList.innerHTML = ''; // Clear existing
+
+        const audioFiles = data.files.filter(file => file.mimeType.includes('audio'));
+
+        if (audioFiles.length === 0) {
+          musicList.innerHTML = '<p>No audio files found in the folder.</p>';
+          return;
+        }
+
+        audioFiles.forEach(file => {
+          const downloadUrl = `https://drive.google.com/uc?export=download&id=${file.id}`;
+          const audioUrl = downloadUrl;
+
+          const trackDiv = document.createElement('div');
+          trackDiv.className = 'track';
+          trackDiv.innerHTML = `
+            <input type="checkbox" class="track-checkbox" data-link="${downloadUrl}">
+            <label>${file.name}</label>
+            <audio controls src="${audioUrl}"></audio>
+          `;
+          musicList.appendChild(trackDiv);
+        });
+      } catch (err) {
+        console.error(err);
+        alert("Failed to load folder. Check folder ID and API key.");
+      }
+    }
+
+    function downloadLink(url) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = '';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    function downloadSelected() {
+      const selected = document.querySelectorAll('.track-checkbox:checked');
+      selected.forEach(cb => downloadLink(cb.dataset.link));
+    }
+
+    function downloadAll() {
+      const all = document.querySelectorAll('.track-checkbox');
+      all.forEach(cb => downloadLink(cb.dataset.link));
+    }
+  </script>
+
+</body>
+</html>
